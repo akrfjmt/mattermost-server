@@ -4,7 +4,6 @@
 package app
 
 import (
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -12,10 +11,10 @@ import (
 
 	"testing"
 
+	"github.com/mattermost/mattermost-server/config"
 	"github.com/mattermost/mattermost-server/mlog"
 	"github.com/mattermost/mattermost-server/model"
 	"github.com/mattermost/mattermost-server/utils"
-	"github.com/mattermost/mattermost-server/utils/fileutils"
 )
 
 type TestHelper struct {
@@ -29,30 +28,22 @@ type TestHelper struct {
 
 	SystemAdminUser *model.User
 
-	tempConfigPath string
-	tempWorkspace  string
+	tempWorkspace string
 }
 
 func setupTestHelper(enterprise bool, tb testing.TB) *TestHelper {
 	mainHelper.Store.DropAllTables()
 
-	permConfig, err := os.Open(fileutils.FindConfigFile("config.json"))
-	if err != nil {
-		panic(err)
-	}
-	defer permConfig.Close()
-	tempConfig, err := ioutil.TempFile("", "")
-	if err != nil {
-		panic(err)
-	}
-	_, err = io.Copy(tempConfig, permConfig)
-	tempConfig.Close()
-	if err != nil {
-		panic(err)
-	}
+	options := []Option{}
 
-	options := []Option{Config(tempConfig.Name(), false)}
+	memoryStore, err := config.NewMemoryStore(true, false)
+	if err != nil {
+		panic("failed to initialize memory store: " + err.Error())
+	}
+	options = append(options, ConfigStore(memoryStore))
+
 	options = append(options, StoreOverride(mainHelper.Store))
+
 	options = append(options, SetLogger(mlog.NewTestingLogger(tb)))
 
 	s, err := NewServer(options...)
@@ -61,9 +52,8 @@ func setupTestHelper(enterprise bool, tb testing.TB) *TestHelper {
 	}
 
 	th := &TestHelper{
-		App:            s.FakeApp(),
-		Server:         s,
-		tempConfigPath: tempConfig.Name(),
+		App:    s.FakeApp(),
+		Server: s,
 	}
 
 	th.App.UpdateConfig(func(cfg *model.Config) { *cfg.TeamSettings.MaxUsersPerTeam = 50 })
@@ -417,7 +407,6 @@ func (me *TestHelper) ShutdownApp() {
 
 func (me *TestHelper) TearDown() {
 	me.ShutdownApp()
-	os.Remove(me.tempConfigPath)
 	if err := recover(); err != nil {
 		panic(err)
 	}
