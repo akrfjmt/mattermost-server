@@ -93,7 +93,7 @@ func (fs *FileStore) Set(newCfg *model.Config) (*model.Config, error) {
 			return ErrReadOnlyConfiguration
 		}
 
-		return nil
+		return fs.commonStore.validate(cfg)
 	})
 }
 
@@ -128,11 +128,11 @@ func (fs *FileStore) Load() (err error) {
 	f, err = os.Open(fs.path)
 	if os.IsNotExist(err) {
 		needsSave = true
-		defaultCfg := model.Config{}
+		defaultCfg := &model.Config{}
 		defaultCfg.SetDefaults()
 
 		var defaultCfgBytes []byte
-		defaultCfgBytes, err = marshalConfig(&defaultCfg)
+		defaultCfgBytes, err = marshalConfig(defaultCfg)
 		if err != nil {
 			return errors.Wrap(err, "failed to serialize default config")
 		}
@@ -149,7 +149,7 @@ func (fs *FileStore) Load() (err error) {
 		}
 	}()
 
-	return fs.commonStore.load(f, needsSave, fs.persist)
+	return fs.commonStore.load(f, needsSave, fs.commonStore.validate, fs.persist)
 }
 
 // Save writes the current configuration to the backing store.

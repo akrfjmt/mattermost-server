@@ -5,7 +5,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/json"
 	"io/ioutil"
 
 	"github.com/pkg/errors"
@@ -16,21 +15,17 @@ import (
 // memoryStore implements the Store interface. It is meant primarily for testing.
 type memoryStore struct {
 	emitter
-
-	Config               *model.Config
-	EnvironmentOverrides map[string]interface{}
+	commonStore
 
 	allowEnvironmentOverrides bool
+	validate                  bool
 }
 
 // NewMemoryStore creates a new memoryStore instance.
-func NewMemoryStore(allowEnvironmentOverrides bool) (*memoryStore, error) {
-	defaultCfg := &model.Config{}
-	defaultCfg.SetDefaults()
-
+func NewMemoryStore(allowEnvironmentOverrides bool, validate bool) (*memoryStore, error) {
 	ms := &memoryStore{
-		Config:                    defaultCfg,
 		allowEnvironmentOverrides: allowEnvironmentOverrides,
+		validate:                  validate,
 	}
 
 	if err := ms.Load(); err != nil {
@@ -40,51 +35,30 @@ func NewMemoryStore(allowEnvironmentOverrides bool) (*memoryStore, error) {
 	return ms, nil
 }
 
-// Get fetches the current, cached configuration.
-func (ms *memoryStore) Get() *model.Config {
-	return ms.Config
-}
-
-// GetEnvironmentOverrides fetches the configuration fields overridden by environment variables.
-func (ms *memoryStore) GetEnvironmentOverrides() map[string]interface{} {
-	return ms.EnvironmentOverrides
-}
-
 // Set replaces the current configuration in its entirety.
 func (ms *memoryStore) Set(newCfg *model.Config) (*model.Config, error) {
-	oldCfg := ms.Config
+	validate := ms.commonStore.validate
+	if !ms.validate {
+		validate = nil
+	}
 
-	newCfg.SetDefaults()
-	ms.Config = newCfg
-
-	return oldCfg, nil
+	return ms.commonStore.set(newCfg, validate)
 }
 
-// serialize converts the given configuration into JSON bytes for persistence.
-func (ms *memoryStore) serialize(cfg *model.Config) ([]byte, error) {
-	return json.MarshalIndent(cfg, "", "    ")
-}
-
-// Load applies environment overrides to the current config as if a re-load had occurred.
+// Load applies environment overrides to the default config as if a re-load had occurred.
 func (ms *memoryStore) Load() (err error) {
+	defaultCfg := &model.Config{}
+	defaultCfg.SetDefaults()
+
 	var cfgBytes []byte
-	cfgBytes, err = ms.serialize(ms.Config)
+	cfgBytes, err = marshalConfig(defaultCfg)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize config")
 	}
 
 	f := ioutil.NopCloser(bytes.NewReader(cfgBytes))
 
-	allowEnvironmentOverrides := true
-	loadedCfg, environmentOverrides, err := unmarshalConfig(f, allowEnvironmentOverrides)
-	if err != nil {
-		return errors.Wrap(err, "failed to load config")
-	}
-
-	ms.Config = loadedCfg
-	ms.EnvironmentOverrides = environmentOverrides
-
-	return nil
+	return ms.commonStore.load(f, false, nil, nil)
 }
 
 // Save does nothing, as there is no backing store.

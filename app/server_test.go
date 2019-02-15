@@ -34,10 +34,14 @@ func TestStartServerSuccess(t *testing.T) {
 
 func TestStartServerRateLimiterCriticalError(t *testing.T) {
 	// Attempt to use Rate Limiter with an invalid config
-	ms, err := config.NewMemoryStore(true)
+	ms, err := config.NewMemoryStore(true, false)
 	require.NoError(t, err)
-	*ms.Config.RateLimitSettings.Enable = true
-	*ms.Config.RateLimitSettings.MaxBurst = -100
+
+	config := ms.Get()
+	*config.RateLimitSettings.Enable = true
+	*config.RateLimitSettings.MaxBurst = -100
+	_, err = ms.Set(config)
+	require.NoError(t, err)
 
 	s, err := NewServer(ConfigStore(ms))
 	require.NoError(t, err)

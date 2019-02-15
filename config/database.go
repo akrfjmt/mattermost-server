@@ -113,7 +113,7 @@ func parseDSN(dsn string) (string, string, error) {
 
 // Set replaces the current configuration in its entirety, without updating the backing store.
 func (ds *DatabaseStore) Set(newCfg *model.Config) (*model.Config, error) {
-	return ds.commonStore.set(newCfg, nil)
+	return ds.commonStore.set(newCfg, ds.commonStore.validate)
 }
 
 // persist writes the configuration to the configured database.
@@ -174,7 +174,7 @@ func (ds *DatabaseStore) Load() (err error) {
 	if len(configurationData) == 0 {
 		needsSave = true
 
-		defaultCfg := model.Config{}
+		defaultCfg := &model.Config{}
 		defaultCfg.SetDefaults()
 
 		// Assume the database storing the config is also to be used for the application.
@@ -183,13 +183,13 @@ func (ds *DatabaseStore) Load() (err error) {
 		*defaultCfg.SqlSettings.DriverName = ds.driverName
 		*defaultCfg.SqlSettings.DataSource = ds.dataSourceName
 
-		configurationData, err = marshalConfig(&defaultCfg)
+		configurationData, err = marshalConfig(defaultCfg)
 		if err != nil {
 			return errors.Wrap(err, "failed to serialize default config")
 		}
 	}
 
-	return ds.commonStore.load(ioutil.NopCloser(bytes.NewReader(configurationData)), needsSave, ds.persist)
+	return ds.commonStore.load(ioutil.NopCloser(bytes.NewReader(configurationData)), needsSave, ds.commonStore.validate, ds.persist)
 }
 
 // Save writes the current configuration to the backing store.

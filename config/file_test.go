@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -355,7 +356,7 @@ func TestFileStoreSet(t *testing.T) {
 
 		_, err = fs.Set(newCfg)
 		if assert.Error(t, err) {
-			assert.Equal(t, err, config.ErrReadOnlyConfiguration)
+			assert.Equal(t, config.ErrReadOnlyConfiguration, errors.Cause(err))
 		}
 
 		assert.Equal(t, model.SERVICE_SETTINGS_DEFAULT_SITE_URL, *fs.Get().ServiceSettings.SiteURL)
