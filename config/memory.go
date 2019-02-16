@@ -5,6 +5,7 @@ package config
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 
 	"github.com/pkg/errors"
@@ -19,6 +20,7 @@ type memoryStore struct {
 
 	allowEnvironmentOverrides bool
 	validate                  bool
+	files                     map[string][]byte
 }
 
 // NewMemoryStore creates a new memoryStore instance.
@@ -26,6 +28,7 @@ func NewMemoryStore(allowEnvironmentOverrides bool, validate bool) (*memoryStore
 	ms := &memoryStore{
 		allowEnvironmentOverrides: allowEnvironmentOverrides,
 		validate:                  validate,
+		files:                     make(map[string][]byte),
 	}
 
 	if err := ms.Load(); err != nil {
@@ -63,6 +66,48 @@ func (ms *memoryStore) Load() (err error) {
 
 // Save does nothing, as there is no backing store.
 func (ms *memoryStore) Save() error {
+	return nil
+}
+
+// GetFile fetches the contents of a previously persisted configuration file.
+func (ms *memoryStore) GetFile(name string) ([]byte, error) {
+	ms.configLock.RLock()
+	defer ms.configLock.RUnlock()
+
+	data, ok := ms.files[name]
+	if !ok {
+		return nil, fmt.Errorf("file %s not stored", name)
+	}
+
+	return data, nil
+}
+
+// SetFile sets or replaces the contents of a configuration file.
+func (ms *memoryStore) SetFile(name string, data []byte) error {
+	ms.configLock.Lock()
+	defer ms.configLock.Unlock()
+
+	ms.files[name] = data
+
+	return nil
+}
+
+// HasFile returns true if the given file was previously persisted.
+func (ms *memoryStore) HasFile(name string) (bool, error) {
+	ms.configLock.RLock()
+	defer ms.configLock.RUnlock()
+
+	_, ok := ms.files[name]
+	return ok, nil
+}
+
+// RemoveFile remoevs a previously persisted configuration file.
+func (ms *memoryStore) RemoveFile(name string) error {
+	ms.configLock.Lock()
+	defer ms.configLock.Unlock()
+
+	delete(ms.files, name)
+
 	return nil
 }
 

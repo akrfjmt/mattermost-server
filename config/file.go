@@ -160,6 +160,71 @@ func (fs *FileStore) Save() error {
 	return fs.persist(fs.config)
 }
 
+// GetFile fetches the contents of a previously persisted configuration file.
+func (fs *FileStore) GetFile(name string) ([]byte, error) {
+	resolvedPath, err := resolveConfigFilePath(name)
+	if err != nil {
+		return nil, err
+	}
+
+	data, err := ioutil.ReadFile(resolvedPath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to read file from %s", resolvedPath)
+	}
+
+	return data, nil
+}
+
+// SetFile sets or replaces the contents of a configuration file.
+func (fs *FileStore) SetFile(name string, data []byte) error {
+	resolvedPath, err := resolveConfigFilePath(name)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(resolvedPath, data, 0777)
+	if err != nil {
+		return errors.Wrapf(err, "failed to write file to %s", resolvedPath)
+	}
+
+	return nil
+}
+
+// HasFile returns true if the given file was previously persisted.
+func (fs *FileStore) HasFile(name string) (bool, error) {
+	resolvedPath, err := resolveConfigFilePath(name)
+	if err != nil {
+		return false, err
+	}
+
+	_, err = os.Stat(resolvedPath)
+	if err != nil && os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, errors.Wrap(err, "failed to check if file exists")
+	}
+
+	return true, nil
+}
+
+// RemoveFile removes a previously persisted configuration file.
+func (fs *FileStore) RemoveFile(name string) error {
+	resolvedPath, err := resolveConfigFilePath(name)
+	if err != nil {
+		return err
+	}
+
+	err = os.Remove(resolvedPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.Wrap(err, "failed to remove file")
+	}
+
+	return err
+}
+
 // startWatcher starts a watcher to monitor for external config file changes.
 func (fs *FileStore) startWatcher() error {
 	if fs.watcher != nil {
