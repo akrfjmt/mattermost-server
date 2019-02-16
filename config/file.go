@@ -67,11 +67,15 @@ func resolveConfigFilePath(path string) (string, error) {
 		return path, nil
 	}
 
-	// Search for the given relative path (or plain filename) in various directories,
-	// resolving to the corresponding absolute path if found. FindConfigFile takes into account
-	// various common search paths rooted both at the current working directory and relative
-	// to the executable.
-	if configFile := fileutils.FindConfigFile(path); configFile != "" {
+	// Search for the relative path to the file in the config folder, taking into account
+	// various common starting points.
+	if configFile := fileutils.FindFile(filepath.Join("config", path)); configFile != "" {
+		return configFile, nil
+	}
+
+	// Search for the relative path in the current working directory, also taking into account
+	// various common starting points.
+	if configFile := fileutils.FindPath(path, []string{"."}, nil); configFile != "" {
 		return configFile, nil
 	}
 
