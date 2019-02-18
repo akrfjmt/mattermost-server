@@ -15,27 +15,44 @@ import (
 
 // memoryStore implements the Store interface. It is meant primarily for testing.
 type memoryStore struct {
-	emitter
 	commonStore
 
 	allowEnvironmentOverrides bool
 	validate                  bool
 	files                     map[string][]byte
+	savedConfig               *model.Config
 }
 
 // MemoryStoreOptions makes configuration of the memory store explicit.
 type MemoryStoreOptions struct {
 	IgnoreEnvironmentOverrides bool
 	SkipValidation             bool
+	InitialConfig              *model.Config
+	InitialFiles               map[string][]byte
 }
 
 // NewMemoryStore creates a new memoryStore instance.
 func NewMemoryStore(options *MemoryStoreOptions) (*memoryStore, error) {
+	savedConfig := options.InitialConfig
+	if savedConfig == nil {
+		savedConfig = &model.Config{}
+		savedConfig.SetDefaults()
+	}
+
+	initialFiles := options.InitialFiles
+	if initialFiles == nil {
+		initialFiles = make(map[string][]byte)
+	}
+
 	ms := &memoryStore{
 		allowEnvironmentOverrides: !options.IgnoreEnvironmentOverrides,
 		validate:                  !options.SkipValidation,
-		files:                     make(map[string][]byte),
+		files:                     initialFiles,
+		savedConfig:               savedConfig,
 	}
+
+	ms.commonStore.config = &model.Config{}
+	ms.commonStore.config.SetDefaults()
 
 	if err := ms.Load(); err != nil {
 		return nil, err
@@ -54,25 +71,37 @@ func (ms *memoryStore) Set(newCfg *model.Config) (*model.Config, error) {
 	return ms.commonStore.set(newCfg, validate)
 }
 
+// persist copies the active config to the saved config.
+func (ms *memoryStore) persist(cfg *model.Config) error {
+	ms.savedConfig = cfg.Clone()
+
+	return nil
+}
+
 // Load applies environment overrides to the default config as if a re-load had occurred.
 func (ms *memoryStore) Load() (err error) {
-	defaultCfg := &model.Config{}
-	defaultCfg.SetDefaults()
-
 	var cfgBytes []byte
-	cfgBytes, err = marshalConfig(defaultCfg)
+	cfgBytes, err = marshalConfig(ms.savedConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to serialize config")
 	}
 
 	f := ioutil.NopCloser(bytes.NewReader(cfgBytes))
 
-	return ms.commonStore.load(f, false, nil, nil)
+	validate := ms.commonStore.validate
+	if !ms.validate {
+		validate = nil
+	}
+
+	return ms.commonStore.load(f, false, validate, ms.persist)
 }
 
-// Save does nothing, as there is no backing store.
+// Save copies the active config to the saved config, simulating a backing store.
 func (ms *memoryStore) Save() error {
-	return nil
+	ms.configLock.Lock()
+	defer ms.configLock.Unlock()
+
+	return ms.persist(ms.config)
 }
 
 // GetFile fetches the contents of a previously persisted configuration file.
@@ -107,7 +136,7 @@ func (ms *memoryStore) HasFile(name string) (bool, error) {
 	return ok, nil
 }
 
-// RemoveFile remoevs a previously persisted configuration file.
+// RemoveFile removes a previously persisted configuration file.
 func (ms *memoryStore) RemoveFile(name string) error {
 	ms.configLock.Lock()
 	defer ms.configLock.Unlock()
@@ -119,10 +148,10 @@ func (ms *memoryStore) RemoveFile(name string) error {
 
 // String returns a hard-coded description, as there is no backing store.
 func (ms *memoryStore) String() string {
-	return "mock://"
+	return "memory://"
 }
 
-// Close does nothing for a mock store.
+// Close does nothing for a memory store.
 func (ms *memoryStore) Close() error {
 	return nil
 }

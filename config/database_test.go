@@ -485,18 +485,12 @@ func TestDatabaseGetFile(t *testing.T) {
 	})
 
 	t.Run("get empty file", func(t *testing.T) {
-		err := os.MkdirAll("config", 0700)
-		require.NoError(t, err)
-
 		data, err := ds.GetFile("empty-file")
 		require.NoError(t, err)
 		require.Empty(t, data)
 	})
 
 	t.Run("get non-empty file", func(t *testing.T) {
-		err := os.MkdirAll("config", 0700)
-		require.NoError(t, err)
-
 		data, err := ds.GetFile("test-file")
 		require.NoError(t, err)
 		require.Equal(t, []byte("test"), data)
@@ -623,9 +617,6 @@ func TestDatabaseRemoveFile(t *testing.T) {
 		ds, err := config.NewDatabaseStore(fmt.Sprintf("%s://%s", *mainHelper.Settings.DriverName, *mainHelper.Settings.DataSource))
 		require.NoError(t, err)
 		defer ds.Close()
-
-		err = os.MkdirAll("config", 0700)
-		require.NoError(t, err)
 
 		err = ds.RemoveFile("manual")
 		require.NoError(t, err)
