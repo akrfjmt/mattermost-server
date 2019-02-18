@@ -36,7 +36,7 @@ func setupTestHelper(enterprise bool, tb testing.TB) *TestHelper {
 
 	options := []Option{}
 
-	memoryStore, err := config.NewMemoryStore(true, false)
+	memoryStore, err := config.NewMemoryStore(&config.MemoryStoreOptions{})
 	if err != nil {
 		panic("failed to initialize memory store: " + err.Error())
 	}

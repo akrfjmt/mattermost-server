@@ -34,7 +34,7 @@ func TestStartServerSuccess(t *testing.T) {
 
 func TestStartServerRateLimiterCriticalError(t *testing.T) {
 	// Attempt to use Rate Limiter with an invalid config
-	ms, err := config.NewMemoryStore(true, false)
+	ms, err := config.NewMemoryStore(&config.MemoryStoreOptions{})
 	require.NoError(t, err)
 
 	config := ms.Get()

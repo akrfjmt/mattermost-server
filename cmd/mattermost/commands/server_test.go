@@ -51,7 +51,7 @@ func TestRunServerSuccess(t *testing.T) {
 	th := SetupServerTest()
 	defer th.TearDownServerTest()
 
-	configStore, err := config.NewMemoryStore(true, false)
+	configStore, err := config.NewMemoryStore(&config.MemoryStoreOptions{})
 	require.NoError(t, err)
 
 	err = runServer(configStore, th.disableConfigWatch, false, th.interruptChan)
@@ -99,7 +99,7 @@ func TestRunServerSystemdNotification(t *testing.T) {
 		ch <- string(data)
 	}(socketReader)
 
-	configStore, err := config.NewMemoryStore(true, false)
+	configStore, err := config.NewMemoryStore(&config.MemoryStoreOptions{})
 	require.NoError(t, err)
 
 	// Start and stop the server
@@ -120,7 +120,7 @@ func TestRunServerNoSystemd(t *testing.T) {
 	os.Unsetenv("NOTIFY_SOCKET")
 	defer os.Setenv("NOTIFY_SOCKET", originalSocket)
 
-	configStore, err := config.NewMemoryStore(true, false)
+	configStore, err := config.NewMemoryStore(&config.MemoryStoreOptions{})
 	require.NoError(t, err)
 
 	err = runServer(configStore, th.disableConfigWatch, false, th.interruptChan)

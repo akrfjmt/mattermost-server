@@ -23,11 +23,17 @@ type memoryStore struct {
 	files                     map[string][]byte
 }
 
+// MemoryStoreOptions makes configuration of the memory store explicit.
+type MemoryStoreOptions struct {
+	IgnoreEnvironmentOverrides bool
+	SkipValidation             bool
+}
+
 // NewMemoryStore creates a new memoryStore instance.
-func NewMemoryStore(allowEnvironmentOverrides bool, validate bool) (*memoryStore, error) {
+func NewMemoryStore(options *MemoryStoreOptions) (*memoryStore, error) {
 	ms := &memoryStore{
-		allowEnvironmentOverrides: allowEnvironmentOverrides,
-		validate:                  validate,
+		allowEnvironmentOverrides: !options.IgnoreEnvironmentOverrides,
+		validate:                  !options.SkipValidation,
 		files:                     make(map[string][]byte),
 	}
 
